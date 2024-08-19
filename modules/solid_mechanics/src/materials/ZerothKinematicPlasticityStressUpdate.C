@@ -147,10 +147,9 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeResidual(
   if (_yield_condition > 0.0)
   {
     _hardening_slope = computeHardeningDerivative(scalar);
-    _hardening_variable[_qp] = computeHardeningValue(scalar);
+    _backstress[_qp] = computeHardeningValue(scalar);
 
-    return (effective_trial_stress - _hardening_variable[_qp] - _yield_stress) /
-               _three_shear_modulus -
+    return (effective_trial_stress - _backstress[_qp] - _yield_stress) / _three_shear_modulus -
            scalar;
   }
 
