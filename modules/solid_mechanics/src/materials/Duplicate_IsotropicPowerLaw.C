@@ -7,15 +7,15 @@
 //* Licensed under LGPL 2.1, please see LICENSE for details
 //* https://www.gnu.org/licenses/lgpl-2.1.html
 
-#include "IsotropicPowerLawHardeningStressUpdate.h"
+#include "Duplicate_IsotropicPowerLaw.h"
 #include "ElasticityTensorTools.h"
 
-registerMooseObject("SolidMechanicsApp", IsotropicPowerLawHardeningStressUpdate);
-registerMooseObject("SolidMechanicsApp", ADIsotropicPowerLawHardeningStressUpdate);
+registerMooseObject("SolidMechanicsApp", Duplicate_IsotropicPowerLaw);
+registerMooseObject("SolidMechanicsApp", ADDuplicate_IsotropicPowerLaw);
 
 template <bool is_ad>
 InputParameters
-IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::validParams()
+Duplicate_IsotropicPowerLawTempl<is_ad>::validParams()
 {
   InputParameters params = IsotropicPlasticityStressUpdateTempl<is_ad>::validParams();
   params.addClassDescription("This class uses the discrete material in a radial return isotropic "
@@ -42,7 +42,7 @@ IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::validParams()
 }
 
 template <bool is_ad>
-IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::IsotropicPowerLawHardeningStressUpdateTempl(
+Duplicate_IsotropicPowerLawTempl<is_ad>::Duplicate_IsotropicPowerLawTempl(
     const InputParameters & parameters)
   : IsotropicPlasticityStressUpdateTempl<is_ad>(parameters),
     _K(parameters.get<Real>("strength_coefficient")),
@@ -52,7 +52,7 @@ IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::IsotropicPowerLawHardeningSt
 
 template <bool is_ad>
 void
-IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::computeStressInitialize(
+Duplicate_IsotropicPowerLawTempl<is_ad>::computeStressInitialize(
     const GenericReal<is_ad> & effective_trial_stress,
     const GenericRankFourTensor<is_ad> & elasticity_tensor)
 {
@@ -66,12 +66,11 @@ IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::computeStressInitialize(
       effective_trial_stress - this->_hardening_variable_old[_qp] - this->_yield_stress;
 
   this->_hardening_variable[_qp] = this->_hardening_variable_old[_qp];
-  this->_plastic_strain[_qp] = this->_plastic_strain_old[_qp];
 }
 
 template <bool is_ad>
 GenericReal<is_ad>
-IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::computeHardeningDerivative(
+Duplicate_IsotropicPowerLawTempl<is_ad>::computeHardeningDerivative(
     const GenericReal<is_ad> & scalar)
 {
   const GenericReal<is_ad> stress_delta = _effective_trial_stress - _three_shear_modulus * scalar;
@@ -85,7 +84,7 @@ IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::computeHardeningDerivative(
 
 template <bool is_ad>
 void
-IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::computeYieldStress(
+Duplicate_IsotropicPowerLawTempl<is_ad>::computeYieldStress(
     const GenericRankFourTensor<is_ad> & elasticity_tensor)
 {
   // Pull in the Lam\`{e} lambda, and caculate E
@@ -104,7 +103,7 @@ IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::computeYieldStress(
 
 template <bool is_ad>
 GenericReal<is_ad>
-IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::getIsotropicLameLambda(
+Duplicate_IsotropicPowerLawTempl<is_ad>::getIsotropicLameLambda(
     const GenericRankFourTensor<is_ad> & elasticity_tensor)
 {
   const GenericReal<is_ad> lame_lambda = elasticity_tensor(0, 0, 1, 1);
@@ -112,9 +111,9 @@ IsotropicPowerLawHardeningStressUpdateTempl<is_ad>::getIsotropicLameLambda(
   if (this->_mesh.dimension() == 3 &&
       MetaPhysicL::raw_value(lame_lambda) != MetaPhysicL::raw_value(elasticity_tensor(1, 1, 2, 2)))
     mooseError(
-        "Check to ensure that your Elasticity Tensor is truly Isotropic: dixfferent lambda values");
+        "Check to ensure that your Elasticity Tensor is truly Isotropic: different lambda values");
   return lame_lambda;
 }
 
-template class IsotropicPowerLawHardeningStressUpdateTempl<false>;
-template class IsotropicPowerLawHardeningStressUpdateTempl<true>;
+template class Duplicate_IsotropicPowerLawTempl<false>;
+template class Duplicate_IsotropicPowerLawTempl<true>;

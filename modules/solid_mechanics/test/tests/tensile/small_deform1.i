@@ -153,7 +153,7 @@
 
 [Outputs]
   file_base = small_deform1
-  exodus = false
+  exodus = true
   [./csv]
     type = CSV
     [../]

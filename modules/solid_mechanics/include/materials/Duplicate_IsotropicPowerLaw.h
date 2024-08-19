@@ -29,43 +29,37 @@
  * \f$ \sigma_y = \left( \frac{E^n}{K} \right)^{1/(n-1)} \f$
  */
 template <bool is_ad>
-class ZerothKinematicHardeningTempl : public IsotropicPlasticityStressUpdateTempl<is_ad>
+class Duplicate_IsotropicPowerLawTempl
+  : public IsotropicPlasticityStressUpdateTempl<is_ad>
 {
 public:
   static InputParameters validParams();
 
-  ZerothKinematicHardeningTempl(const InputParameters & parameters);
+  Duplicate_IsotropicPowerLawTempl(const InputParameters & parameters);
 
   using Material::_qp;
   using RadialReturnStressUpdateTempl<is_ad>::_three_shear_modulus;
-  using RadialReturnStressUpdateTempl<is_ad>::_base_name;
 
 protected:
   virtual void
   computeStressInitialize(const GenericReal<is_ad> & effective_trial_stress,
                           const GenericRankFourTensor<is_ad> & elasticity_tensor) override;
   virtual void computeYieldStress(const GenericRankFourTensor<is_ad> & elasticity_tensor) override;
-  virtual void computeBackStress(const GenericReal<is_ad> & plastic_strain_increment); // ADDED
-
   virtual GenericReal<is_ad> computeHardeningDerivative(const GenericReal<is_ad> & scalar) override;
-  // virtual void initQpStatefulProperties() override;
 
   ///@{ Power law hardening coefficients
-  Real _C;                         // Kinematic Hardening Modulus ADDED
-  Real _K;                         // strength Coefficient
-  Real _strain_hardening_exponent; // variable 'n' //ADDED
-
+  Real _K;
+  Real _strain_hardening_exponent;
   ///@}
 
   /// Elastic constants
   GenericReal<is_ad> _youngs_modulus;
 
+  ///
   GenericReal<is_ad> _effective_trial_stress;
-  GenericMaterialProperty<Real, is_ad> & _alpha; // ADDED
-  const MaterialProperty<Real> & _alpha_old;     // ADDED
 
   GenericReal<is_ad> getIsotropicLameLambda(const GenericRankFourTensor<is_ad> & elasticity_tensor);
 };
 
-typedef ZerothKinematicHardeningTempl<false> ZerothKinematicHardening;
-typedef ZerothKinematicHardeningTempl<true> ADZerothKinematicHardening;
+typedef Duplicate_IsotropicPowerLawTempl<false> Duplicate_IsotropicPowerLaw;
+typedef Duplicate_IsotropicPowerLawTempl<true> ADDuplicate_IsotropicPowerLaw;

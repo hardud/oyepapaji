@@ -74,7 +74,13 @@ ZerothKinematicHardeningTempl<is_ad>::computeStressInitialize(
   this->_yield_condition =
       effective_trial_stress - this->_alpha[_qp] - this->_yield_stress; // ADDED
 
+  std::cout << "Value of _alpha[_qp] before assignment: " << this->_alpha[_qp] << std::endl;
+
   this->_alpha[_qp] = this->_alpha_old[_qp];
+
+  std::cout << "Value of _alpha[_qp] after assignment: " << this->_alpha[_qp]
+            << std::endl; // updated backstress values
+
   this->_plastic_strain[_qp] = this->_plastic_strain_old[_qp]; // ADDED
 }
 
