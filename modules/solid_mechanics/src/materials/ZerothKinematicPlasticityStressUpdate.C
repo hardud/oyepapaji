@@ -132,7 +132,14 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeStressInitialize(
   computeYieldStress(elasticity_tensor);
 
   _yield_condition = effective_trial_stress - _backstress[_qp] - _yield_stress;
+
+  // std::cout << "Value of _backstress[_qp] before assignment: " << _backstress[_qp] << std::endl;
+
   _backstress[_qp] = _backstress_old[_qp];
+
+  // std::cout << "Value of _backstress[_qp] after assignment: " << _backstress[_qp] << std::endl;
+  //  // updated backstress values
+
   _plastic_strain[_qp] = _plastic_strain_old[_qp];
 }
 
@@ -147,7 +154,7 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeResidual(
   if (_yield_condition > 0.0)
   {
     _hardening_slope = computeHardeningDerivative(scalar);
-    _backstress[_qp] = computeHardeningValue(scalar);
+    _hardening_variable[_qp] = computeHardeningValue(scalar);
 
     return (effective_trial_stress - _backstress[_qp] - _yield_stress) / _three_shear_modulus -
            scalar;
@@ -182,6 +189,7 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeStressFinalize(
     const GenericRankTwoTensor<is_ad> & plastic_strain_increment)
 {
   _plastic_strain[_qp] += plastic_strain_increment;
+  computeBackStress(plastic_strain_increment); ///ADDED
 }
 
 template <bool is_ad>
@@ -234,9 +242,9 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeYieldStress(
 template <bool is_ad> // ADDED
 void
 ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeBackStress(
-    const GenericReal<is_ad> & plastic_strain_increment)
+    const GenericRankTwoTensor<is_ad> & plastic_strain_increment)
 {
-  this->_backstress[_qp] = this->_backstress_old[_qp] + _C * plastic_strain_increment;
+  this->_backstress[_qp] = this->_backstress_old[_qp] + _C * plastic_strain_increment[_qp];
 }
 
 template class ZerothKinematicPlasticityStressUpdateTempl<false>;

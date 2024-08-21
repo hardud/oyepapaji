@@ -65,7 +65,8 @@ protected:
 
   virtual GenericReal<is_ad> computeHardeningValue(const GenericReal<is_ad> & scalar);
   virtual GenericReal<is_ad> computeHardeningDerivative(const GenericReal<is_ad> & scalar);
-  virtual void computeBackStress(const GenericReal<is_ad> & plastic_strain_increment); // ADDED
+  virtual void
+  computeBackStress(const GenericRankTwoTensor<is_ad> & plastic_strain_increment); // ADDED
 
   /// a string to prepend to the plastic strain Material Property name
   const std::string _plastic_prepend;
