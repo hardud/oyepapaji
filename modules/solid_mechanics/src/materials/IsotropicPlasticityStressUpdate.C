@@ -38,6 +38,7 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::validParams()
       "String that is prepended to the plastic_strain Material Property",
       "This has been replaced by the 'base_name' parameter");
   params.set<std::string>("effective_inelastic_strain_name") = "effective_plastic_strain";
+  params.addParam<Real>("kinematic_hardening_modulus", 0.0, "Kinematic hardening modulus");
 
   return params;
 }
@@ -60,10 +61,17 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::IsotropicPlasticityStressUpdateTemp
                             : nullptr),
     _yield_condition(-1.0), // set to a non-physical value to catch uninitalized yield condition
     _hardening_slope(0.0),
+    // stress_new.zero(),
     _plastic_strain(this->template declareGenericProperty<RankTwoTensor, is_ad>(
         _base_name + _plastic_prepend + "plastic_strain")),
     _plastic_strain_old(this->template getMaterialPropertyOld<RankTwoTensor>(
         _base_name + _plastic_prepend + "plastic_strain")),
+
+    _backstress(this->template declareGenericProperty<RankTwoTensor, is_ad>("backstress")), // ADDED
+
+    _backstress_old(this->template getMaterialPropertyOld<RankTwoTensor>("backstress")),
+    _C(this->template getParam<Real>("kinematic_hardening_modulus")), // ADDED
+
     _hardening_variable(
         this->template declareGenericProperty<Real, is_ad>(_base_name + "hardening_variable")),
     _hardening_variable_old(
@@ -90,6 +98,7 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::initQpStatefulProperties()
 {
   _hardening_variable[_qp] = 0.0;
   _plastic_strain[_qp].zero();
+  _backstress[_qp].zero(); // Initialize backstress
 }
 
 template <bool is_ad>
@@ -98,6 +107,7 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::propagateQpStatefulProperties()
 {
   _hardening_variable[_qp] = _hardening_variable_old[_qp];
   _plastic_strain[_qp] = _plastic_strain_old[_qp];
+  _backstress[_qp] = _backstress_old[_qp]; // Propagate backstress
 
   RadialReturnStressUpdateTempl<is_ad>::propagateQpStatefulPropertiesRadialReturn();
 }
@@ -111,10 +121,31 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::computeStressInitialize(
   RadialReturnStressUpdateTempl<is_ad>::computeStressInitialize(effective_trial_stress,
                                                                 elasticity_tensor);
 
-  computeYieldStress(elasticity_tensor);
+  this->stress_new = elasticity_tensor * (this->strain_increment + this->elastic_strain_old);
 
-  _yield_condition = effective_trial_stress - _hardening_variable_old[_qp] - _yield_stress;
+  computeYieldStress(elasticity_tensor);
+  std::cout << _C << std::endl;
+  if (_C != 0.0) // EDITED
+  {
+    GenericRankTwoTensor<is_ad> deviatoric_trial_stress =
+        this->stress_new.deviatoric() - _backstress[_qp];
+
+    GenericReal<is_ad> deviatoric_norm =
+        std::sqrt(deviatoric_trial_stress.doubleContraction(deviatoric_trial_stress));
+
+    _yield_condition =
+        deviatoric_norm /*effective_trial_stress*/ - _hardening_variable_old[_qp] - _yield_stress;
+
+    // std::cout << "Backstress during yield condition calculation: " << _backstress[_qp] <<
+    // std::endl;
+  }
+
+  else
+  {
+    _yield_condition = effective_trial_stress - _hardening_variable_old[_qp] - _yield_stress;
+  }
   _hardening_variable[_qp] = _hardening_variable_old[_qp];
+  _backstress[_qp] = _backstress_old[_qp];
   _plastic_strain[_qp] = _plastic_strain_old[_qp];
 }
 
@@ -131,9 +162,28 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::computeResidual(
     _hardening_slope = computeHardeningDerivative(scalar);
     _hardening_variable[_qp] = computeHardeningValue(scalar);
 
-    return (effective_trial_stress - _hardening_variable[_qp] - _yield_stress) /
-               _three_shear_modulus -
-           scalar;
+    GenericReal<is_ad> residual; // ADDED
+
+    if (_C != 0)
+    {
+      GenericRankTwoTensor<is_ad> deviatoric_trial_stress =
+          this->stress_new.deviatoric() - _backstress[_qp];
+
+      GenericReal<is_ad> deviatoric_norm =
+          std::sqrt(deviatoric_trial_stress.doubleContraction(deviatoric_trial_stress));
+
+      residual =
+          (deviatoric_norm - _hardening_variable[_qp] - _yield_stress) / _three_shear_modulus -
+          scalar;
+    }
+
+    else
+    {
+      residual = (effective_trial_stress - _hardening_variable[_qp] - _yield_stress) /
+                     _three_shear_modulus -
+                 scalar;
+    }
+    return residual;
   }
 
   return 0.0;
@@ -164,6 +214,10 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::computeStressFinalize(
     const GenericRankTwoTensor<is_ad> & plastic_strain_increment)
 {
   _plastic_strain[_qp] += plastic_strain_increment;
+  if (_C != 0)
+  {
+    _backstress[_qp] = _backstress_old[_qp] + _C * plastic_strain_increment;
+  }
 }
 
 template <bool is_ad>

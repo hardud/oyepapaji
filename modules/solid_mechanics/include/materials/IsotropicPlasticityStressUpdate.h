@@ -75,12 +75,19 @@ protected:
 
   GenericReal<is_ad> _yield_condition;
   GenericReal<is_ad> _hardening_slope;
+  GenericRankTwoTensor<is_ad> stress_new;
+  GenericRankTwoTensor<is_ad> elastic_strain_old;
+  GenericRankTwoTensor<is_ad> strain_increment;
 
   /// plastic strain in this model
   GenericMaterialProperty<RankTwoTensor, is_ad> & _plastic_strain;
 
   /// old value of plastic strain
   const MaterialProperty<RankTwoTensor> & _plastic_strain_old;
+
+  GenericMaterialProperty<RankTwoTensor, is_ad> & _backstress; // ADDED
+  const MaterialProperty<RankTwoTensor> & _backstress_old;     // ADDED
+  const Real _C;                                               // ADDED
 
   GenericMaterialProperty<Real, is_ad> & _hardening_variable;
   const MaterialProperty<Real> & _hardening_variable_old;

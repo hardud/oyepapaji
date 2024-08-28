@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "RankTwoTensorForward.h"
 #include "StressUpdateBase.h"
 #include "SingleVariableReturnMappingSolution.h"
 #include "ADSingleVariableReturnMappingSolution.h"
@@ -264,6 +265,10 @@ protected:
 
   /// original timestep (to be restored after substepping is completed)
   Real _dt_original;
+
+  GenericMaterialProperty<RankTwoTensor, is_ad> & _backstress; // ADDED
+  const MaterialProperty<RankTwoTensor> & _backstress_old;     // ADDED
+  const Real _C;                                               // ADDED
 };
 
 typedef RadialReturnStressUpdateTempl<false> RadialReturnStressUpdate;

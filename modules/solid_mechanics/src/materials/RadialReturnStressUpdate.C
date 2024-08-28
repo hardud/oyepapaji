@@ -12,6 +12,7 @@
 
 #include "MooseMesh.h"
 #include "ElasticityTensorTools.h"
+#include "RankTwoTensorForward.h"
 
 template <bool is_ad>
 InputParameters
@@ -90,7 +91,11 @@ RadialReturnStressUpdateTempl<is_ad>::RadialReturnStressUpdateTempl(
     _use_substepping(
         this->template getParam<MooseEnum>("use_substepping").template getEnum<SubsteppingType>()),
     _adaptive_substepping(this->template getParam<bool>("adaptive_substepping")),
-    _maximum_number_substeps(this->template getParam<unsigned>("maximum_number_substeps"))
+    _maximum_number_substeps(this->template getParam<unsigned>("maximum_number_substeps")),
+    _backstress(this->template declareGenericProperty<RankTwoTensor, is_ad>("backstress")), // ADDED
+
+    _backstress_old(this->template getMaterialPropertyOld<RankTwoTensor>("backstress")),
+    _C(parameters.get<Real>("kinematic_hardening_modulus")) // ADDED
 {
   if (this->_pars.isParamSetByUser("use_substep"))
   {
@@ -126,6 +131,7 @@ void
 RadialReturnStressUpdateTempl<is_ad>::initQpStatefulProperties()
 {
   _effective_inelastic_strain[_qp] = 0.0;
+  _backstress[_qp] = 0.0; // ADDED
 }
 
 template <bool is_ad>
@@ -143,6 +149,7 @@ void
 RadialReturnStressUpdateTempl<is_ad>::propagateQpStatefulPropertiesRadialReturn()
 {
   _effective_inelastic_strain[_qp] = _effective_inelastic_strain_old[_qp];
+  _backstress[_qp] = _backstress_old[_qp]; // ADDED
 }
 
 template <bool is_ad>
@@ -248,7 +255,8 @@ RadialReturnStressUpdateTempl<is_ad>::updateState(
 
   // compute the deviatoric trial stress and trial strain from the current intermediate
   // configuration
-  GenericRankTwoTensor<is_ad> deviatoric_trial_stress = stress_new.deviatoric();
+  GenericRankTwoTensor<is_ad> deviatoric_trial_stress =
+      stress_new.deviatoric() - _backstress[_qp]; // Added
 
   // compute the effective trial stress
   GenericReal<is_ad> dev_trial_stress_squared =
@@ -270,9 +278,17 @@ RadialReturnStressUpdateTempl<is_ad>::updateState(
     this->returnMappingSolve(
         effective_trial_stress, _effective_inelastic_strain_increment, this->_console);
     if (_effective_inelastic_strain_increment != 0.0)
+    {
       inelastic_strain_increment =
           deviatoric_trial_stress *
           (1.5 * _effective_inelastic_strain_increment / effective_trial_stress);
+
+      if (_C != 0.0)
+      {
+        _backstress[_qp] = _backstress_old[_qp] + _C * inelastic_strain_increment; // ADDED
+      }
+    }
+
     else
       inelastic_strain_increment.zero();
   }
