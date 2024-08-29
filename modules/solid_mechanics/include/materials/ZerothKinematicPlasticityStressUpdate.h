@@ -60,9 +60,9 @@ public:
   computeStressInitialize(const GenericReal<is_ad> & _effective_trial_stress2,
                           const GenericRankFourTensor<is_ad> & elasticity_tensor) override;
   virtual GenericReal<is_ad> computeResidual(const GenericReal<is_ad> & _effective_trial_stress2,
-                                             const GenericReal<is_ad> & _scalar_one) override;
+                                             const GenericReal<is_ad> & scalar) override;
   virtual GenericReal<is_ad> computeDerivative(const GenericReal<is_ad> & _effective_trial_stress2,
-                                               const GenericReal<is_ad> & _scalar_one) override;
+                                               const GenericReal<is_ad> & scalar) override;
 
   virtual void computeYieldStress(const GenericRankFourTensor<is_ad> & elasticity_tensor);
 
@@ -93,14 +93,15 @@ protected:
 
   // virtual GenericReal<is_ad> computeHardeningValue(const GenericReal<is_ad> & scalar);
   // virtual GenericReal<is_ad> computeHardeningDerivative(const GenericReal<is_ad> & scalar);
-  virtual GenericRankTwoTensor<is_ad>
-  computeBackStress(const GenericRankTwoTensor<is_ad> & plastic_strain_increment); // ADDED
+  // virtual GenericRankTwoTensor<is_ad>
+  // computeBackStress(const GenericRankTwoTensor<is_ad> & plastic_strain_increment); // ADDED
   const RankTwoTensor _deviatoric_stress;
-  // virtual void iterationFinalize(const GenericReal<is_ad> & _scalar_one) override;
+  virtual void iterationFinalize(const GenericReal<is_ad> & scalar) override;
 
   Real _norm_dev_stress;
   Real _norm_dev_stress_squared;
   Real _effective_trial_stress2;
+  Real scalar;
   // Real _three_shear_modulus;
   GenericMaterialProperty<Real, is_ad> & _effective_inelastic_strain;
 
@@ -123,7 +124,7 @@ protected:
   // const Function * const _hardening_function;
 
   GenericReal<is_ad> _yield_condition;
-  // GenericReal<is_ad> _hardening_slope;
+  GenericReal<is_ad> _hardening_slope;
   /// Debugging option to enable specifying instead of calculating strain
 
   /// Current value of scalar inelastic strain
