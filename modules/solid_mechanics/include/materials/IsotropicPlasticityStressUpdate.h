@@ -77,7 +77,7 @@ protected:
   GenericReal<is_ad> _hardening_slope;
   GenericRankTwoTensor<is_ad> stress_new;
   GenericRankTwoTensor<is_ad> elastic_strain_old;
-  GenericRankTwoTensor<is_ad> strain_increment;
+  GenericRankTwoTensor<is_ad> strain_increment; // hatao
 
   /// plastic strain in this model
   GenericMaterialProperty<RankTwoTensor, is_ad> & _plastic_strain;
@@ -87,7 +87,9 @@ protected:
 
   GenericMaterialProperty<RankTwoTensor, is_ad> & _backstress; // ADDED
   const MaterialProperty<RankTwoTensor> & _backstress_old;     // ADDED
-  const Real _C;                                               // ADDED
+  const Real _C;                                               // Added
+  const Real _gamma;                                           // Added
+  GenericReal<is_ad> _effective_inelastic_strain_increment;    // ADDED hatao
 
   GenericMaterialProperty<Real, is_ad> & _hardening_variable;
   const MaterialProperty<Real> & _hardening_variable_old;

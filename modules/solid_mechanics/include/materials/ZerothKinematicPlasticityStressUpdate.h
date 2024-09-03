@@ -156,6 +156,8 @@ protected:
 
   ///  Kinematic Hardening Modulus ADDED
   Real _C;
+  /// Nonlinear Hardening Parameter gamma
+  Real _gamma;
 
   // GenericMaterialProperty<Real, is_ad> & _hardening_variable;
   // const MaterialProperty<Real> & _hardening_variable_old;

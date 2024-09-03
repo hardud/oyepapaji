@@ -41,7 +41,9 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::validParams()
   params.set<std::string>("effective_inelastic_strain_name") = "effective_plastic_strain";
   params.addRequiredParam<Real>("kinematic_hardening_modulus",
                                 "The kinematic hardening modulus (C) for back stress evolution");
-
+  params.addRequiredParam<Real>(
+      "material_constant_gamma",
+      "The nonlinear hardening parameter (gamma) for back stress evolution");
   return params;
 }
 
@@ -88,6 +90,7 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::ZerothKinematicPlasticityStre
 
     _backstress_old(this->template getMaterialPropertyOld<RankTwoTensor>("backstress")),
     _C(parameters.get<Real>("kinematic_hardening_modulus")), // ADDED // added to remove errors
+    _gamma(parameters.get<Real>("material_constant_gamma")),
 
     // _hardening_variable(
     //     this->template declareGenericProperty<Real, is_ad>(_base_name + "hardening_variable")),
@@ -124,7 +127,7 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::ZerothKinematicPlasticityStre
 //     Real _norm_dev_stress_squared;
 //     Real _effective_trial_stress;
 //     Real _three_shear_modulus;
-//     Real _effective_inelastic_strain_increment;
+//     Real _effective_inelastic_strain_increment_effective_inelastic_strain_increment;
 //     Real _deriv;
 //     Real _scalar_one;
 //     RankTwoTensor _flow_direction;
@@ -376,7 +379,7 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeStressInitialize(
 template <bool is_ad>
 GenericReal<is_ad>
 ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeResidual(
-    const GenericReal<is_ad> & _effective_trial_stress2, const GenericReal<is_ad> & scalar)
+    const GenericReal<is_ad> & _effective_trial_stress2, const GenericReal<is_ad> & _scalar_one)
 {
   mooseAssert(_yield_condition != -1.0,
               "the yield stress was not updated by computeStressInitialize");
@@ -390,7 +393,7 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeResidual(
     _plastic_strain[_qp] = _plastic_strain_old[_qp];
 
     GenericReal<is_ad> residual =
-        (_effective_trial_stress2 - _yield_stress) / _three_shear_modulus - scalar;
+        (_effective_trial_stress2 - _yield_stress) / _three_shear_modulus - _scalar_one;
 
     return residual;
     // return (_effective_trial_stress2 -
@@ -405,7 +408,8 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeResidual(
 template <bool is_ad>
 GenericReal<is_ad>
 ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeDerivative(
-    const GenericReal<is_ad> & /*_effective_trial_stress2*/, const GenericReal<is_ad> & /*scalar*/)
+    const GenericReal<is_ad> & /*_effective_trial_stress2*/,
+    const GenericReal<is_ad> & /*_scalar_one*/)
 {
   if (_yield_condition > 0.0)
     return -1.0 - _hardening_slope / _three_shear_modulus;
@@ -424,7 +428,7 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeDerivative(
 template <bool is_ad>
 void
 ZerothKinematicPlasticityStressUpdateTempl<is_ad>::iterationFinalize(
-    const GenericReal<is_ad> & /*scalar*/)
+    const GenericReal<is_ad> & /*_scalar_one*/)
 {
   if (_yield_condition > 0.0)
   {
@@ -444,7 +448,8 @@ ZerothKinematicPlasticityStressUpdateTempl<is_ad>::computeStressFinalize(
     const GenericRankTwoTensor<is_ad> & plastic_strain_increment)
 {
   _plastic_strain[_qp] += plastic_strain_increment;
-  _backstress[_qp] = _backstress_old[_qp] + _C * plastic_strain_increment;
+  _backstress[_qp] = _backstress_old[_qp] + (2.0 / 3.0) * _C * plastic_strain_increment -
+                     _gamma * _backstress[_qp] * _effective_inelastic_strain_increment;
   std::cout << "Backstress: " << MetaPhysicL::raw_value(_backstress[_qp]) << std::endl;
   std::cout << "Plastic_strain: " << MetaPhysicL::raw_value(_plastic_strain[_qp]) << std::endl;
 }

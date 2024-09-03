@@ -95,7 +95,8 @@ RadialReturnStressUpdateTempl<is_ad>::RadialReturnStressUpdateTempl(
     _backstress(this->template declareGenericProperty<RankTwoTensor, is_ad>("backstress")), // ADDED
 
     _backstress_old(this->template getMaterialPropertyOld<RankTwoTensor>("backstress")),
-    _C(parameters.get<Real>("kinematic_hardening_modulus")) // ADDED
+    _C(this->template getParam<Real>("kinematic_hardening_modulus")) // Added hatao
+
 {
   if (this->_pars.isParamSetByUser("use_substep"))
   {
@@ -131,7 +132,7 @@ void
 RadialReturnStressUpdateTempl<is_ad>::initQpStatefulProperties()
 {
   _effective_inelastic_strain[_qp] = 0.0;
-  _backstress[_qp] = 0.0; // ADDED
+  _backstress[_qp] = 0.0; // ADDED hatao
 }
 
 template <bool is_ad>
@@ -149,7 +150,7 @@ void
 RadialReturnStressUpdateTempl<is_ad>::propagateQpStatefulPropertiesRadialReturn()
 {
   _effective_inelastic_strain[_qp] = _effective_inelastic_strain_old[_qp];
-  _backstress[_qp] = _backstress_old[_qp]; // ADDED
+  _backstress[_qp] = _backstress_old[_qp]; // ADDED hatao
 }
 
 template <bool is_ad>
@@ -256,7 +257,7 @@ RadialReturnStressUpdateTempl<is_ad>::updateState(
   // compute the deviatoric trial stress and trial strain from the current intermediate
   // configuration
   GenericRankTwoTensor<is_ad> deviatoric_trial_stress =
-      stress_new.deviatoric() - _backstress[_qp]; // Added
+      stress_new.deviatoric() - _backstress[_qp]; // Added hatao
 
   // compute the effective trial stress
   GenericReal<is_ad> dev_trial_stress_squared =
@@ -286,7 +287,7 @@ RadialReturnStressUpdateTempl<is_ad>::updateState(
       if (_C != 0.0)
       {
         _backstress[_qp] = _backstress_old[_qp] + _C * inelastic_strain_increment; // ADDED
-      }
+      } // hatao
     }
 
     else

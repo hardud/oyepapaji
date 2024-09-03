@@ -268,7 +268,7 @@ protected:
 
   GenericMaterialProperty<RankTwoTensor, is_ad> & _backstress; // ADDED
   const MaterialProperty<RankTwoTensor> & _backstress_old;     // ADDED
-  const Real _C;                                               // ADDED
+  const Real _C;                                               // ADDED hatao
 };
 
 typedef RadialReturnStressUpdateTempl<false> RadialReturnStressUpdate;
