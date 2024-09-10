@@ -12,7 +12,9 @@
 
 #include "Function.h"
 #include "ElasticityTensorTools.h"
+#include "RadialReturnStressUpdate.h"
 #include "metaphysicl/raw_type.h"
+#include "wasplsp/LSP.h"
 
 registerMooseObject("SolidMechanicsApp", ADIsotropicPlasticityStressUpdate);
 registerMooseObject("SolidMechanicsApp", IsotropicPlasticityStressUpdate);
@@ -41,9 +43,11 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::validParams()
       "This has been replaced by the 'base_name' parameter");
   params.set<std::string>("effective_inelastic_strain_name") = "effective_plastic_strain";
   params.addParam<Real>("kinematic_hardening_modulus", 0.0, "Kinematic hardening modulus");
-  params.addRequiredParam<Real>(
+  params.addParam<Real>(
       "material_constant_gamma",
+      0.0,
       "The nonlinear hardening parameter (gamma) for back stress evolution"); // hatao
+  // params.addParam<Real>("combined_hardening_parameter", "beta");
 
   return params;
 }
@@ -78,11 +82,16 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::IsotropicPlasticityStressUpdateTemp
     _backstress_old(this->template getMaterialPropertyOld<RankTwoTensor>("backstress")),
     _C(this->template getParam<Real>("kinematic_hardening_modulus")), // ADDED hatao
     _gamma(this->template getParam<Real>("material_constant_gamma")),
-
+    // _beta(this->template getParam<Real>("combined_hardening_parameter")),
     _hardening_variable(
         this->template declareGenericProperty<Real, is_ad>(_base_name + "hardening_variable")),
     _hardening_variable_old(
         this->template getMaterialPropertyOld<Real>(_base_name + "hardening_variable")),
+    _kinematic_hardening_variable(this->template declareGenericProperty<Real, is_ad>(
+        "kinematic_hardening_variable")), // Added
+    _kinematic_hardening_variable_old(
+        this->template getMaterialPropertyOld<Real>("kinematic_hardening_variable")), // Added
+
     _temperature(this->template coupledGenericValue<is_ad>("temperature"))
 {
   if (parameters.isParamSetByUser("yield_stress") && _yield_stress <= 0.0)
@@ -104,6 +113,7 @@ void
 IsotropicPlasticityStressUpdateTempl<is_ad>::initQpStatefulProperties()
 {
   _hardening_variable[_qp] = 0.0;
+  _kinematic_hardening_variable[_qp] = 0.0;
   _plastic_strain[_qp].zero();
   _backstress[_qp].zero(); // Initialize backstress hatao
 }
@@ -113,6 +123,7 @@ void
 IsotropicPlasticityStressUpdateTempl<is_ad>::propagateQpStatefulProperties()
 {
   _hardening_variable[_qp] = _hardening_variable_old[_qp];
+  _kinematic_hardening_variable[_qp] = _kinematic_hardening_variable_old[_qp];
   _plastic_strain[_qp] = _plastic_strain_old[_qp];
   _backstress[_qp] = _backstress_old[_qp]; // Propagate backstress hatao
 
@@ -128,26 +139,15 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::computeStressInitialize(
   RadialReturnStressUpdateTempl<is_ad>::computeStressInitialize(effective_trial_stress,
                                                                 elasticity_tensor);
 
-  // this->stress_new = elasticity_tensor * (this->strain_increment + this->elastic_strain_old);
-
   computeYieldStress(elasticity_tensor);
 
-  _yield_condition = effective_trial_stress - _hardening_variable_old[_qp] - _yield_stress;
+  _yield_condition = effective_trial_stress - _hardening_variable_old[_qp] - _yield_stress -
+                     _kinematic_hardening_variable_old[_qp];
 
-  std::cout << "Effective Trial Stress: " << effective_trial_stress << std::endl;
   std::cout << "Yield Condition: " << _yield_condition << std::endl;
 
   _plastic_strain[_qp] = _plastic_strain_old[_qp];
-
-  if (_C != 0)
-  {
-    _backstress[_qp] = _backstress_old[_qp];
-  }
-  else
-  {
-    _backstress[_qp].zero();
-  }
-  // hatao
+  _backstress[_qp] = _backstress_old[_qp];
 }
 
 template <bool is_ad>
@@ -162,24 +162,18 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::computeResidual(
   {
     _hardening_slope = computeHardeningDerivative(scalar);
     _hardening_variable[_qp] = computeHardeningValue(scalar);
+    _kinematic_hardening_variable[_qp] = computeKinematicHardeningValue(scalar); // Added
 
-    if (_C != 0.0)
-    {
-      _backstress[_qp] = _backstress_old[_qp];
-      _plastic_strain[_qp] = _plastic_strain_old[_qp];
-    }
-    else
-    {
-      _backstress[_qp].zero(); // backstress remains zero if kinematic hardening is not used
-    } // hatao
-
-    GenericReal<is_ad> residual =
-        (effective_trial_stress - _hardening_variable[_qp] - _yield_stress) / _three_shear_modulus -
-        scalar;
+    GenericReal<is_ad> residual = (effective_trial_stress - _kinematic_hardening_variable[_qp] -
+                                   _hardening_variable[_qp] - _yield_stress) /
+                                      _three_shear_modulus -
+                                  scalar;
 
     std::cout << "Effective Trial Stress: " << effective_trial_stress << std::endl;
-    // std::cout << "Backstress: " << MetaPhysicL::raw_value(_backstress[_qp]) << std::endl; hatao
-    std::cout << "Residual: " << residual << std::endl;
+    std::cout << "Kinematic hardening value: "
+              << MetaPhysicL::raw_value(_kinematic_hardening_variable[_qp]) << std::endl;
+    std::cout << "Isotropic hardening value: " << MetaPhysicL::raw_value(_hardening_variable[_qp])
+              << std::endl;
 
     return residual;
   }
@@ -202,22 +196,23 @@ void
 IsotropicPlasticityStressUpdateTempl<is_ad>::iterationFinalize(const GenericReal<is_ad> & scalar)
 {
   if (_yield_condition > 0.0)
+  {
     _hardening_variable[_qp] = computeHardeningValue(scalar);
+    _kinematic_hardening_variable[_qp] = computeKinematicHardeningValue(scalar); // modify
+  }
 }
 
-template <bool is_ad>
+template <bool is_ad> // modified
 void
 IsotropicPlasticityStressUpdateTempl<is_ad>::computeStressFinalize(
     const GenericRankTwoTensor<is_ad> & plastic_strain_increment)
 {
   _plastic_strain[_qp] += plastic_strain_increment;
-  if (_C != 0)
-  {
-    _backstress[_qp] = _backstress_old[_qp] + (2.0 / 3.0) * _C * plastic_strain_increment -
-                       _gamma * _backstress[_qp] * _effective_inelastic_strain_increment;
-    std::cout << "Backstress: " << MetaPhysicL::raw_value(_backstress[_qp]) << std::endl;
-    std::cout << "Plastic_strain: " << MetaPhysicL::raw_value(_plastic_strain[_qp]) << std::endl;
-  } // hatao
+
+  _backstress[_qp] = _backstress_old[_qp] + (2.0 / 3.0) * _C * plastic_strain_increment -
+                     _gamma * _backstress[_qp] * this->_effective_inelastic_strain_increment;
+  std::cout << "Backstress: " << MetaPhysicL::raw_value(_backstress[_qp]) << std::endl;
+  std::cout << "p_dot: " << _effective_inelastic_strain_increment << std::endl;
 }
 
 template <bool is_ad>
@@ -227,11 +222,11 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::computeHardeningValue(
 {
   if (_hardening_function)
   {
-    const Real strain_old = this->_effective_inelastic_strain_old[_qp];
-    return _hardening_function->value(strain_old + scalar) - _yield_stress;
+    const Real strain_old = this->_effective_inelastic_strain_old[_qp]; // modify
+    return (_hardening_function->value(strain_old + scalar) - _yield_stress);
   }
 
-  return _hardening_variable_old[_qp] + _hardening_slope * scalar;
+  return (_hardening_variable_old[_qp] + _hardening_slope * scalar);
 }
 
 template <bool is_ad>
@@ -246,6 +241,15 @@ IsotropicPlasticityStressUpdateTempl<is_ad>::computeHardeningDerivative(
   }
 
   return _hardening_constant;
+}
+
+template <bool is_ad>
+GenericReal<is_ad>
+IsotropicPlasticityStressUpdateTempl<is_ad>::computeKinematicHardeningValue(
+    const GenericReal<is_ad> & scalar)
+{
+  _kinematic_hardening_variable[_qp] = _C * scalar;
+  return _kinematic_hardening_variable[_qp];
 }
 
 template <bool is_ad>

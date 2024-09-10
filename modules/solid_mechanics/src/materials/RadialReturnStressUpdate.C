@@ -284,10 +284,14 @@ RadialReturnStressUpdateTempl<is_ad>::updateState(
           deviatoric_trial_stress *
           (1.5 * _effective_inelastic_strain_increment / effective_trial_stress);
 
-      if (_C != 0.0)
-      {
-        _backstress[_qp] = _backstress_old[_qp] + _C * inelastic_strain_increment; // ADDED
-      } // hatao
+      // if (_C != 0.0)
+      // {
+      //   _backstress[_qp] = _backstress_old[_qp] + _C * inelastic_strain_increment; // ADDED
+      // } // hatao
+      // else
+      // {
+      //   _backstress[_qp].zero();
+      // }
     }
 
     else

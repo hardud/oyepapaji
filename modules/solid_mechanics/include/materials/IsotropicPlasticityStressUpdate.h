@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "MaterialProperty.h"
 #include "RadialReturnStressUpdate.h"
 
 /**
@@ -64,6 +65,7 @@ protected:
 
   virtual GenericReal<is_ad> computeHardeningValue(const GenericReal<is_ad> & scalar);
   virtual GenericReal<is_ad> computeHardeningDerivative(const GenericReal<is_ad> & scalar);
+  virtual GenericReal<is_ad> computeKinematicHardeningValue(const GenericReal<is_ad> & scalar);
 
   /// a string to prepend to the plastic strain Material Property name
   const std::string _plastic_prepend;
@@ -87,12 +89,15 @@ protected:
 
   GenericMaterialProperty<RankTwoTensor, is_ad> & _backstress; // ADDED
   const MaterialProperty<RankTwoTensor> & _backstress_old;     // ADDED
-  const Real _C;                                               // Added
-  const Real _gamma;                                           // Added
-  GenericReal<is_ad> _effective_inelastic_strain_increment;    // ADDED hatao
+  const Real _C;
+  const Real _gamma;
+  // const Real _beta;
+  GenericReal<is_ad> _effective_inelastic_strain_increment; // ADDED hatao
 
   GenericMaterialProperty<Real, is_ad> & _hardening_variable;
   const MaterialProperty<Real> & _hardening_variable_old;
+  GenericMaterialProperty<Real, is_ad> & _kinematic_hardening_variable;
+  const MaterialProperty<Real> & _kinematic_hardening_variable_old;
   const GenericVariableValue<is_ad> & _temperature;
 };
 
